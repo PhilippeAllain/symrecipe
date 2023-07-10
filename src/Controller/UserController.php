@@ -3,14 +3,15 @@
 namespace App\Controller;
 
 use App\Entity\User;
-use App\Form\UserPasswordType;
 use App\Form\UserType;
+use DateTimeImmutable;
+use App\Form\UserPasswordType;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 
 class UserController extends AbstractController
@@ -67,18 +68,25 @@ class UserController extends AbstractController
     }
    #[Route('/utilisateur/edition-mot-de-passe/{id}', 'user.edit.password', methods: ['GET', 'POST'])]
     public function editPassword(User $user, Request $request, EntityManagerInterface
-    $manager, UserPasswordHasherInterface $hasher): Response
+    $manager, UserPasswordHasherInterface $hasher, DateTimeImmutable $dateTimeImmutable): Response
     {
+        if(!$this->getUser()) {
+            return $this->redirectToRoute('recipe.login');
+        }
+
+        if($this->getUser() !== $user) {
+            return $this->redirectToRoute('recipe.index');
+        }
+
         $form = $this->createForm(UserPasswordType::class);
 
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
             if ($hasher->isPasswordValid($user, $form->getData()['plainPassword'])) {
-                $user->setPassword(
-                    $hasher->hashPassword(
-                        $user,
-                        $form->getData()['newPassword']
-                    )
+                $user->setUpdatedAt(new DateTimeImmutable());
+                $user->setPlainPassword(
+                    $form->getData()['newPassword']
+                
                 );
 
                 $manager->persist($user);
